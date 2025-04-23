@@ -1,4 +1,3 @@
-
 package id.co.bsi.hello_spring.controller;
 
 import id.co.bsi.hello_spring.service.PinService;
@@ -19,12 +18,10 @@ public class PinController {
     public ResponseEntity<?> registerPin(@RequestBody Map<String, String> payload) {
         String accountnum = payload.get("accountnum");
         String pin = payload.get("pin");
-        String method = payload.get("method");
 
         // Validasi input tidak boleh null atau kosong
-        if (accountnum == null || pin == null || method == null ||
-                pin.trim().isEmpty() || method.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "accountnum, pin, and method must be provided."));
+        if (accountnum == null || pin == null || pin.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "accountnum and pin must be provided."));
         }
 
         // Validasi PIN harus 6 digit angka
@@ -46,7 +43,4 @@ public class PinController {
 
         return ResponseEntity.ok(Map.of("message", result));
     }
-
-
-
 }
