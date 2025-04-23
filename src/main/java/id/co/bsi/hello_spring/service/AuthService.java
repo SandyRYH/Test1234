@@ -41,6 +41,12 @@ public class AuthService {
             return res;
         }
 
+        if (req.getPassword() == null || req.getConfirmationPassword() == null || !req.getPassword().equals(req.getConfirmationPassword())) {
+            res.setStatus("error");
+            res.setMessage("Password and confirmation password do not match.");
+            return res;
+        }
+
         Optional<User> existing = userRepository.findByEmail(req.getEmail());
         if (existing.isPresent()) {
             res.setStatus("error");
