@@ -6,7 +6,13 @@ import id.co.bsi.hello_spring.dto.response.LoginResponse;
 import id.co.bsi.hello_spring.dto.response.RegisterResponse;
 import id.co.bsi.hello_spring.model.User;
 import id.co.bsi.hello_spring.repository.UserRepository;
+import id.co.bsi.hello_spring.util.JwtUtility;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.MessageDigest;
@@ -19,6 +25,18 @@ public class AuthService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private UserDetailsService userDetailsService;
+
+    @Autowired
+    private JwtUtility jwtUtility;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     public RegisterResponse register(RegisterRequest req) {
         RegisterResponse res = new RegisterResponse();
@@ -61,8 +79,7 @@ public class AuthService {
         user.setFullName(req.getFullName());
         user.setEmail(req.getEmail());
         user.setPhone(req.getPhone().toString());
-        user.setPasswordHash(hash(req.getPassword()));
-        user.setToken(hash(req.getEmail() + ":" + req.getPassword()));
+        user.setPasswordHash(this.passwordEncoder.encode(req.getPassword()));
         user.setBalance(0);
 
         userRepository.save(user);
@@ -96,6 +113,12 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest req) {
+        this.authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
+        );
+
+        UserDetails userDetails = this.userDetailsService.loadUserByUsername(req.getEmail());
+
         LoginResponse res = new LoginResponse();
         Optional<User> userOpt = userRepository.findByEmail(req.getEmail());
         if (userOpt.isEmpty()) {
@@ -105,14 +128,11 @@ public class AuthService {
         }
 
         User user = userOpt.get();
-        if (!user.getPasswordHash().equals(hash(req.getPassword()))) {
-            res.setStatus("error");
-            res.setMessage("Incorrect password.");
-            return res;
-        }
+
+        String token = this.jwtUtility.generateToken(userDetails, user.getAccountnum());
 
         res.setStatus("success");
-        res.setToken(user.getToken());
+        res.setToken(token);
         res.setAccountnum(user.getAccountnum());
         res.setMessage("Login successful.");
         return res;

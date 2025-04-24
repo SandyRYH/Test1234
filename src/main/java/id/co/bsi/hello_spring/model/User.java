@@ -21,7 +21,5 @@ public class User {
     @Column(unique = true)
     private String phone;
 
-    private String token;
-
     private int balance = 1000000;
 }

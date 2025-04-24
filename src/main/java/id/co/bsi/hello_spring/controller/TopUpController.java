@@ -1,4 +1,3 @@
-
 package id.co.bsi.hello_spring.controller;
 
 import id.co.bsi.hello_spring.dto.request.TopUpRequest;
@@ -9,6 +8,7 @@ import id.co.bsi.hello_spring.model.UserPin;
 import id.co.bsi.hello_spring.repository.UserPinRepository;
 import id.co.bsi.hello_spring.repository.UserRepository;
 import id.co.bsi.hello_spring.service.TransactionService;
+import id.co.bsi.hello_spring.util.SecurityUtility;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,11 +29,21 @@ public class TopUpController {
     @Autowired
     private TransactionService transactionService;
 
+    @Autowired
+    private SecurityUtility securityUtility;
+
     @PostMapping("/api/topup")
-    public ResponseEntity<TopUpResponse> topup (@RequestBody TopUpRequest topUpRequest, @RequestHeader("token") String token){
+    public ResponseEntity<TopUpResponse> topup (@RequestBody TopUpRequest topUpRequest) {
         TopUpResponse response = new TopUpResponse();
 
-        Optional<User> userOpt = userRepository.findByAccountnum(topUpRequest.getAccountnum());
+        String userId = securityUtility.getCurrentUserId();
+        if (userId == null || !userId.equals(topUpRequest.getAccountnum())) {
+            response.setStatus("fail");
+            response.setMessage("Unauthorized access.");
+            return ResponseEntity.status(401).body(response);
+        }
+
+        Optional<User> userOpt = userRepository.findByAccountnum(userId);
         if (userOpt.isEmpty()) {
             response.setStatus("fail");
             response.setMessage("Account not found.");
@@ -47,11 +57,6 @@ public class TopUpController {
         }
 
         User user = userOpt.get();
-        if (!user.getToken().equals(token)) {
-            response.setStatus("fail");
-            response.setMessage("Unauthorized.");
-            return ResponseEntity.status(401).body(response);
-        }
 
         // Validasi kartu ATM
         if (topUpRequest.getCardNumber() == null || !topUpRequest.getCardNumber().matches("\\d{16}")) {
@@ -69,6 +74,7 @@ public class TopUpController {
             response.setMessage("Invalid expiration date format. Must be MM/YY.");
             return ResponseEntity.status(400).body(response);
         }
+
         // Cek kadaluarsa kartu
         String[] expParts = topUpRequest.getExpirationDate().split("/");
         int expMonth = Integer.parseInt(expParts[0]);
@@ -83,27 +89,27 @@ public class TopUpController {
         }
 
         // Validasi PIN
-        Optional<UserPin> userPinOpt = userPinRepository.findByAccountnum(user.getAccountnum());
-        if (userPinOpt.isEmpty()) {
-            response.setStatus("fail");
-            response.setMessage("PIN not registered.");
-            return ResponseEntity.status(401).body(response);
-        }
-
-        try {
-            String hashedPin = Base64.getEncoder().encodeToString(
-                    MessageDigest.getInstance("SHA-256").digest(topUpRequest.getPin().getBytes())
-            );
-            if (!userPinOpt.get().getPinHash().equals(hashedPin)) {
-                response.setStatus("fail");
-                response.setMessage("Invalid PIN");
-                return ResponseEntity.status(401).body(response);
-            }
-        } catch (Exception e) {
-            response.setStatus("fail");
-            response.setMessage("PIN validation error.");
-            return ResponseEntity.status(500).body(response);
-        }
+//        Optional<UserPin> userPinOpt = userPinRepository.findByAccountnum(user.getAccountnum());
+//        if (userPinOpt.isEmpty()) {
+//            response.setStatus("fail");
+//            response.setMessage("PIN not registered.");
+//            return ResponseEntity.status(401).body(response);
+//        }
+//
+//        try {
+//            String hashedPin = Base64.getEncoder().encodeToString(
+//                    MessageDigest.getInstance("SHA-256").digest(topUpRequest.getPin().getBytes())
+//            );
+//            if (!userPinOpt.get().getPinHash().equals(hashedPin)) {
+//                response.setStatus("fail");
+//                response.setMessage("Invalid PIN");
+//                return ResponseEntity.status(401).body(response);
+//            }
+//        } catch (Exception e) {
+//            response.setStatus("fail");
+//            response.setMessage("PIN validation error.");
+//            return ResponseEntity.status(500).body(response);
+//        }
 
         // Update balance
         user.setBalance(user.getBalance() + topUpRequest.getAmount());
@@ -116,11 +122,10 @@ public class TopUpController {
         txn.setType("income");
         txn.setFromTo("TopUp via " + topUpRequest.getMethod());
         txn.setDescription("Top up successful");
-        txn.setDateTime(java.time.LocalDate.now().toString());
+        txn.setDateTime(java.time.LocalDateTime.now().toString());
 
-        transactionService.save(txn);
+        transactionService.saveTransaction(txn);
 
-        // Prepare response
         response.setStatus("success");
         response.setMessage("Top Up Success");
 

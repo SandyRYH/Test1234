@@ -43,7 +43,6 @@ public class PinService {
         return "PIN registered successfully.";
     }
 
-    // Perbaiki disini
     public boolean checkAccountExists(String accountnum) {
         return userRepository.findByAccountnum(accountnum).isPresent();
     }

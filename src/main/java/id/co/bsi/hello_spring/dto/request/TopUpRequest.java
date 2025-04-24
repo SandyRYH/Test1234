@@ -9,7 +9,7 @@ public class TopUpRequest {
     private String from;
     private String notes;
     private String accountnum;
-    private String pin;
+//    private String pin;
     private String method;
 
     // Tambahan validasi kartu

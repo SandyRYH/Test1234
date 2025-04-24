@@ -41,7 +41,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body(response);
         }
 
-        LoginResponse response = authService.login(request);
+        LoginResponse response = this.authService.login(request);
         if ("error".equals(response.getStatus())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
         }

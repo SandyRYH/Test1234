@@ -3,6 +3,7 @@ package id.co.bsi.hello_spring.service;
 
 import id.co.bsi.hello_spring.dto.request.TransferRequest;
 import id.co.bsi.hello_spring.dto.response.TransferResponse;
+import id.co.bsi.hello_spring.model.TransactionModel;
 import id.co.bsi.hello_spring.model.User;
 import id.co.bsi.hello_spring.model.UserPin;
 import id.co.bsi.hello_spring.repository.UserRepository;
@@ -59,7 +60,6 @@ public class TransferService {
             return res;
         }
 
-
         // Validasi: tidak boleh transfer ke diri sendiri
         if (fromUser.getAccountnum().equals(toUser.getAccountnum())) {
             res.setStatus("error");
@@ -88,6 +88,24 @@ public class TransferService {
         userRepository.save(fromUser);
         userRepository.save(toUser);
 
+        TransactionModel debitTxn = new TransactionModel();
+        debitTxn.setAccountnum(fromUser.getAccountnum());
+        debitTxn.setAmount(request.getAmount());
+        debitTxn.setType("expense");
+        debitTxn.setFromTo("Transfer to " + toUser.getFullName());
+        debitTxn.setDescription("Transfer to account " + toUser.getAccountnum());
+        debitTxn.setDateTime(java.time.LocalDateTime.now().toString());
+        transactionRepository.save(debitTxn);
+
+        TransactionModel creditTxn = new TransactionModel();
+        creditTxn.setAccountnum(toUser.getAccountnum());
+        creditTxn.setAmount(request.getAmount());
+        creditTxn.setType("income");
+        creditTxn.setFromTo("Received from " + fromUser.getFullName());
+        creditTxn.setDescription("Transfer from account " + fromUser.getAccountnum());
+        creditTxn.setDateTime(java.time.LocalDateTime.now().toString());
+        transactionRepository.save(creditTxn);
+
         res.setStatus("success");
         res.setMessage("Transfer completed");
         res.setFromName(fromUser.getFullName());
@@ -109,3 +127,5 @@ public class TransferService {
         }
     }
 }
+
+
