@@ -5,9 +5,12 @@ import id.co.bsi.hello_spring.dto.request.RegisterRequest;
 import id.co.bsi.hello_spring.dto.response.LoginResponse;
 import id.co.bsi.hello_spring.dto.response.RegisterResponse;
 import id.co.bsi.hello_spring.model.User;
+import id.co.bsi.hello_spring.model.UserPin;
+import id.co.bsi.hello_spring.repository.UserPinRepository;
 import id.co.bsi.hello_spring.repository.UserRepository;
 import id.co.bsi.hello_spring.util.JwtUtility;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.security.MessageDigest;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
@@ -38,56 +42,61 @@ public class AuthService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    public RegisterResponse register(RegisterRequest req) {
-        RegisterResponse res = new RegisterResponse();
+    @Autowired
+    private PinService pinService;
 
-        if (req.getFullName() == null || req.getFullName().trim().isEmpty()) {
-            res.setStatus("error");
-            res.setMessage("Full name cannot be empty.");
-            return res;
+    @Autowired
+    private UserPinRepository userPinRepository;
+
+
+    public ResponseEntity<?> processRegisterWithPin(Map<String, String> payload) {
+        String fullName = payload.get("fullName");
+        String email = payload.get("email");
+        String password = payload.get("password");
+        String confirmationPassword = payload.get("confirmationPassword");
+        String phone = payload.get("phone");
+        String pin = payload.get("pin");
+
+        // Validasi input
+        if (fullName == null || fullName.trim().isEmpty() ||
+                email == null || email.trim().isEmpty() ||
+                password == null || confirmationPassword == null || !password.equals(confirmationPassword) ||
+                phone == null || pin == null || pin.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "All fields must be provided and valid."));
         }
 
-        if (req.getPhone() == null || req.getPhone().toString().trim().isEmpty()) {
-            res.setStatus("error");
-            res.setMessage("Phone number cannot be empty.");
-            return res;
+        if (!pin.matches("\\d{6}")) {
+            return ResponseEntity.badRequest().body(Map.of("message", "PIN must be exactly 6 digits."));
         }
 
-        if (!isValidPassword(req.getPassword())) {
-            res.setStatus("error");
-            res.setMessage("Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.");
-            return res;
-        }
-
-        if (req.getPassword() == null || req.getConfirmationPassword() == null || !req.getPassword().equals(req.getConfirmationPassword())) {
-            res.setStatus("error");
-            res.setMessage("Password and confirmation password do not match.");
-            return res;
-        }
-
-        Optional<User> existing = userRepository.findByEmail(req.getEmail());
+        Optional<User> existing = userRepository.findByEmail(email);
         if (existing.isPresent()) {
-            res.setStatus("error");
-            res.setMessage("Email already registered.");
-            return res;
+            return ResponseEntity.status(409).body(Map.of("message", "Email already registered."));
         }
 
+        // Simpan user + pin
+        String result = saveUserAndPin(fullName, email, password, phone, pin);
+        return ResponseEntity.ok(Map.of("message", result));
+    }
+
+    public String saveUserAndPin(String fullName, String email, String password, String phone, String pin) {
         String accountnum = generateAccountNum();
 
         User user = new User();
         user.setAccountnum(accountnum);
-        user.setFullName(req.getFullName());
-        user.setEmail(req.getEmail());
-        user.setPhone(req.getPhone().toString());
-        user.setPasswordHash(this.passwordEncoder.encode(req.getPassword()));
+        user.setFullName(fullName);
+        user.setEmail(email);
+        user.setPhone(phone);
+        user.setPasswordHash(passwordEncoder.encode(password));
         user.setBalance(0);
-
         userRepository.save(user);
 
-        res.setStatus("success");
-        res.setMessage("Registration successful.");
-        res.setAccountnum(accountnum);
-        return res;
+        UserPin userPin = new UserPin();
+        userPin.setAccountnum(accountnum);
+        userPin.setPinHash(pinService.hashPin(pin));
+        userPinRepository.save(userPin);
+
+        return "Registration and PIN setup successful.";
     }
 
 

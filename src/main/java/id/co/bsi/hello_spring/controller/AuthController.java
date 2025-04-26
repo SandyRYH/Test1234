@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 public class AuthController {
 
@@ -17,19 +19,8 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping("/api/register")
-    public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest request) {
-        if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
-            RegisterResponse response = new RegisterResponse();
-            response.setStatus("error");
-            response.setMessage("Email cannot be empty.");
-            return ResponseEntity.badRequest().body(response);
-        }
-
-        RegisterResponse response = authService.register(request);
-        if ("error".equals(response.getStatus())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
-        }
-        return ResponseEntity.ok(response);
+    public ResponseEntity<?> registerWithPin(@RequestBody Map<String, String> payload) {
+        return authService.processRegisterWithPin(payload);
     }
 
     @PostMapping("/api/login")
