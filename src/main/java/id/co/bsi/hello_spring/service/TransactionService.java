@@ -89,38 +89,41 @@ public class TransactionService {
     }
 
 
-    public Map<String, Integer> getTransactionSummaryByMonth(String accountnum, int monthsAgo) {
+    public Map<String, Object> getTransactionSummaryByMonth(String accountnum, int monthsAgo) {
         List<TransactionModel> transactions = transactionRepository.findAllByAccountnum(accountnum);
 
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime startDate;
-        LocalDateTime endDate;
+        LocalDate startDateLocal;
+        LocalDate endDateLocal;
 
         if (monthsAgo == 0) { // THIS MONTH
-            startDate = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
-            endDate = now; // sampai hari ini
+            startDateLocal = now.withDayOfMonth(1).toLocalDate();
+            endDateLocal = now.toLocalDate();
         } else if (monthsAgo == 1) { // LAST MONTH
             LocalDate lastMonthStart = now.minusMonths(1).toLocalDate().withDayOfMonth(1);
             LocalDate lastMonthEnd = lastMonthStart.withDayOfMonth(lastMonthStart.lengthOfMonth());
-            startDate = lastMonthStart.atStartOfDay();
-            endDate = lastMonthEnd.atTime(23, 59, 59, 999999999);
+            startDateLocal = lastMonthStart;
+            endDateLocal = lastMonthEnd;
         } else if (monthsAgo == 3) { // THREE MONTH AGO
             LocalDate threeMonthStart = now.minusMonths(3).toLocalDate().withDayOfMonth(1);
             LocalDate lastMonthEnd = now.minusMonths(1).toLocalDate().withDayOfMonth(now.minusMonths(1).toLocalDate().lengthOfMonth());
-            startDate = threeMonthStart.atStartOfDay();
-            endDate = lastMonthEnd.atTime(23, 59, 59, 999999999);
+            startDateLocal = threeMonthStart;
+            endDateLocal = lastMonthEnd;
         } else {
-            // Default fallback, should not happen
-            startDate = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
-            endDate = now;
+            startDateLocal = now.withDayOfMonth(1).toLocalDate();
+            endDateLocal = now.toLocalDate();
         }
+
+        // Filter transaksi dalam range tersebut
+        LocalDateTime startDateTime = startDateLocal.atStartOfDay();
+        LocalDateTime endDateTime = endDateLocal.atTime(23, 59, 59, 999999999);
 
         List<TransactionModel> filtered = transactions.stream()
                 .filter(t -> {
                     try {
                         LocalDateTime dateTime = LocalDateTime.parse(t.getDateTime());
-                        return (dateTime.isEqual(startDate) || dateTime.isAfter(startDate)) &&
-                                (dateTime.isBefore(endDate) || dateTime.isEqual(endDate));
+                        return (dateTime.isEqual(startDateTime) || dateTime.isAfter(startDateTime)) &&
+                                (dateTime.isBefore(endDateTime) || dateTime.isEqual(endDateTime));
                     } catch (Exception e) {
                         return false;
                     }
@@ -137,11 +140,18 @@ public class TransactionService {
                 .mapToInt(TransactionModel::getAmount)
                 .sum();
 
+        // Format tanggal sesuai permintaan
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
         return Map.of(
                 "totalIncome", totalIncome,
-                "totalExpense", totalExpense
+                "totalExpense", totalExpense,
+                "startDate", startDateLocal.format(dateFormatter),
+                "lastDate", endDateLocal.format(dateFormatter)
         );
     }
+
+
 
     public Page<TransactionModel> getFilteredTransactionsCombined(
             String accountnum, String keyword, int page, int size, String sortBy, String direction, String dateStart, String dateEnd
@@ -313,6 +323,28 @@ public class TransactionService {
         ));
 
         return response;
+    }
+
+    public Map<String, Object> getDonutChartSummary(String accountnum, int monthsAgo) {
+        Map<String, Object> summary = getTransactionSummaryByMonth(accountnum, monthsAgo);
+
+        int income = (int) summary.get("totalIncome");
+        int expense = (int) summary.get("totalExpense");
+        int total = income + expense;
+
+        int incomePct = total == 0 ? 0 : (int) Math.round((income * 100.0) / total);
+        int expensePct = total == 0 ? 0 : (int) Math.round((expense * 100.0) / total);
+
+        return Map.of(
+                "labels", List.of("Income", "Expense"),
+                "datasets", List.of(Map.of(
+                        "data", List.of(incomePct, expensePct),
+                        "backgroundColor", List.of("rgb(75, 192, 192)", "rgb(255, 99, 132)"),
+                        "hoverOffset", 4
+                )),
+                "totalIncome", income,
+                "totalExpense", expense
+        );
     }
 
 

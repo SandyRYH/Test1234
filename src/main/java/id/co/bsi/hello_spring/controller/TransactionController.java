@@ -167,7 +167,7 @@ public class TransactionController {
             ));
         }
 
-        Map<String, Integer> summary = transactionService.getTransactionSummaryByMonth(userId, monthsAgo);
+        Map<String, Object> summary = transactionService.getTransactionSummaryByMonth(userId, monthsAgo);
 
         return ResponseEntity.ok(Map.of(
                 "status", "success",
@@ -175,5 +175,41 @@ public class TransactionController {
                 "data", summary
         ));
     }
+
+    @GetMapping("/summary/donut/this_month")
+    public ResponseEntity<?> getDonutThisMonth() {
+        return getDonutSummaryByMonthRange(0);
+    }
+
+    @GetMapping("/summary/donut/last_month")
+    public ResponseEntity<?> getDonutLastMonth() {
+        return getDonutSummaryByMonthRange(1);
+    }
+
+    @GetMapping("/summary/donut/three_month_ago")
+    public ResponseEntity<?> getDonutThreeMonthAgo() {
+        return getDonutSummaryByMonthRange(3);
+    }
+
+    private ResponseEntity<?> getDonutSummaryByMonthRange(int monthsAgo) {
+        String userId = securityUtility.getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).body(Map.of(
+                    "status", "fail",
+                    "message", "Unauthorized access",
+                    "data", null
+            ));
+        }
+
+        Map<String, Object> donutData = transactionService.getDonutChartSummary(userId, monthsAgo);
+
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "Donut chart summary",
+                "data", donutData
+        ));
+    }
+
+
 
 }
