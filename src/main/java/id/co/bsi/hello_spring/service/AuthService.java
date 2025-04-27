@@ -19,10 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.MessageDigest;
-import java.util.Base64;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
 
 @Service
 public class AuthService {
@@ -48,46 +45,68 @@ public class AuthService {
     @Autowired
     private UserPinRepository userPinRepository;
 
+    // Temp storage backend
+    private final Map<String, Map<String, String>> tempRegisterData = new HashMap<>();
 
-    public ResponseEntity<?> processRegisterWithPin(Map<String, String> payload) {
+    // Step 1: Terima data register, simpan sementara
+    public ResponseEntity<?> processRegisterTemp(Map<String, String> payload) {
         String fullName = payload.get("fullName");
         String email = payload.get("email");
         String password = payload.get("password");
         String confirmationPassword = payload.get("confirmationPassword");
         String phone = payload.get("phone");
-        String pin = payload.get("pin");
 
-        // Validasi input
-        if (fullName == null || fullName.trim().isEmpty() ||
-                email == null || email.trim().isEmpty() ||
-                password == null || confirmationPassword == null || !password.equals(confirmationPassword) ||
-                phone == null || pin == null || pin.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "All fields must be provided and valid."));
+        if (fullName == null || email == null || password == null || confirmationPassword == null || phone == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "All fields must be provided."));
         }
 
-        if (!pin.matches("\\d{6}")) {
-            return ResponseEntity.badRequest().body(Map.of("message", "PIN must be exactly 6 digits."));
+        if (!password.equals(confirmationPassword)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Passwords do not match."));
         }
 
-        Optional<User> existing = userRepository.findByEmail(email);
-        if (existing.isPresent()) {
+        Optional<User> existingEmail = userRepository.findByEmail(email);
+        if (existingEmail.isPresent()) {
             return ResponseEntity.status(409).body(Map.of("message", "Email already registered."));
         }
 
-        // Simpan user + pin
-        String result = saveUserAndPin(fullName, email, password, phone, pin);
-        return ResponseEntity.ok(Map.of("message", result));
+        Optional<User> existingPhone = userRepository.findByPhone(phone);
+        if (existingPhone.isPresent()) {
+            return ResponseEntity.status(409).body(Map.of("message", "Phone number already registered."));
+        }
+
+        String accountnum = generateAccountNum();
+
+        Map<String, String> tempData = new HashMap<>();
+        tempData.put("fullName", fullName);
+        tempData.put("email", email);
+        tempData.put("password", password);
+        tempData.put("phone", phone);
+        tempRegisterData.put(accountnum, tempData);
+
+        return ResponseEntity.ok(Map.of("accountnum", accountnum, "message", "Proceed to PIN entry."));
     }
 
-    public String saveUserAndPin(String fullName, String email, String password, String phone, String pin) {
-        String accountnum = generateAccountNum();
+
+    // Step 2: Finalisasi PIN → Simpan DB
+    public ResponseEntity<?> saveRegisterWithPinFromTemp(Map<String, String> payload) {
+        String accountnum = payload.get("accountnum");
+        String pin = payload.get("pin");
+
+        if (accountnum == null || pin == null || pin.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Account number and PIN are required."));
+        }
+
+        Map<String, String> tempData = tempRegisterData.get(accountnum);
+        if (tempData == null) {
+            return ResponseEntity.status(404).body(Map.of("message", "No registration data found for this account number."));
+        }
 
         User user = new User();
         user.setAccountnum(accountnum);
-        user.setFullName(fullName);
-        user.setEmail(email);
-        user.setPhone(phone);
-        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setFullName(tempData.get("fullName"));
+        user.setEmail(tempData.get("email"));
+        user.setPhone(tempData.get("phone"));
+        user.setPasswordHash(passwordEncoder.encode(tempData.get("password")));
         user.setBalance(0);
         userRepository.save(user);
 
@@ -96,19 +115,21 @@ public class AuthService {
         userPin.setPinHash(pinService.hashPin(pin));
         userPinRepository.save(userPin);
 
-        return "Registration and PIN setup successful.";
-    }
+        tempRegisterData.remove(accountnum);
 
+        return ResponseEntity.ok(Map.of("message", "Registration and PIN setup successful."));
+    }
 
     private String generateAccountNum() {
         Random random = new Random();
-        StringBuilder accountnum = new StringBuilder("7"); // Depan 7
+        StringBuilder accountnum = new StringBuilder("7");
         for (int i = 0; i < 9; i++) {
-            accountnum.append(random.nextInt(10)); // Tambah 9 digit random
+            accountnum.append(random.nextInt(10));
         }
         return accountnum.toString();
     }
 
+    // Validasi Password Kuat
     private boolean isValidPassword(String password) {
         if (password == null || password.length() < 8) return false;
         boolean hasUpper = false, hasLower = false, hasDigit = false, hasSpecial = false;
@@ -121,6 +142,7 @@ public class AuthService {
         return hasUpper && hasLower && hasDigit && hasSpecial;
     }
 
+    // Login Tetap
     public LoginResponse login(LoginRequest req) {
         this.authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
@@ -137,7 +159,6 @@ public class AuthService {
         }
 
         User user = userOpt.get();
-
         String token = this.jwtUtility.generateToken(userDetails, user.getAccountnum());
 
         res.setStatus("success");
