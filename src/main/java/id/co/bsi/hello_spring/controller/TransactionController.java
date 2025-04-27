@@ -26,7 +26,7 @@ public class TransactionController {
     @GetMapping("/me")
     public ResponseEntity<TransactionPageResponse> getMyTransactions(
             @RequestParam(defaultValue = "") String search,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,  // start from 1
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "asc") String direction,
@@ -42,14 +42,32 @@ public class TransactionController {
             return ResponseEntity.status(401).body(failRes);
         }
 
+        if (page < 1) {
+            TransactionPageResponse failRes = new TransactionPageResponse();
+            failRes.setStatus("fail");
+            failRes.setMessage("Page number must be >= 1");
+            failRes.setData(null);
+            return ResponseEntity.badRequest().body(failRes);
+        }
+
+        int pageIndex = page - 1;
+
         Page<TransactionModel> resultPage = transactionService.getFilteredTransactionsCombined(
-                userId, search, page, size, sortBy, direction, dateStart, dateEnd
+                userId, search, pageIndex, size, sortBy, direction, dateStart, dateEnd
         );
+
+        if (pageIndex >= resultPage.getTotalPages() && resultPage.getTotalPages() > 0) {
+            TransactionPageResponse failRes = new TransactionPageResponse();
+            failRes.setStatus("fail");
+            failRes.setMessage("Page number exceeds total pages.");
+            failRes.setData(null);
+            return ResponseEntity.badRequest().body(failRes);
+        }
 
         TransactionPageResponse.DataContent content = new TransactionPageResponse.DataContent();
         content.setTransactions(resultPage.getContent());
         content.setTotalPages(resultPage.getTotalPages());
-        content.setCurrentPage(resultPage.getNumber());
+        content.setCurrentPage(page); // Tampilkan page mulai dari 1
         content.setTotalElements(resultPage.getTotalElements());
 
         TransactionPageResponse res = new TransactionPageResponse();
@@ -59,7 +77,6 @@ public class TransactionController {
 
         return ResponseEntity.ok(res);
     }
-
 
     @GetMapping("/summary/monthly_chart")
     public ResponseEntity<?> getMonthlyChart() {
@@ -86,6 +103,13 @@ public class TransactionController {
         String userId = securityUtility.getCurrentUserId();
         if (userId == null || !userId.equals(transaction.getAccountnum())) {
             return ResponseEntity.status(401).body("Unauthorized or account mismatch");
+        }
+
+        if (!transaction.getType().equalsIgnoreCase("income") && !transaction.getType().equalsIgnoreCase("expense")) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "fail",
+                    "message", "Invalid transaction type. Only 'income' or 'expense' allowed."
+            ));
         }
 
         // Validasi dan format dateTime
