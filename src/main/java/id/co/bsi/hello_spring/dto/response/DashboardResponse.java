@@ -13,5 +13,7 @@ public class DashboardResponse {
         private String accountnum;
         private String fullname;
         private int balance;
+        private String email;
+        private String phone;
     }
 }

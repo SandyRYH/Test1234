@@ -41,6 +41,8 @@ public class DashboardService {
         data.setAccountnum(user.getAccountnum());
         data.setFullname(user.getFullName());
         data.setBalance(user.getBalance());
+        data.setEmail(user.getEmail());
+        data.setPhone(user.getPhone());
 
         response.setStatus("success");
         response.setMessage("Dashboard successfully displayed");
