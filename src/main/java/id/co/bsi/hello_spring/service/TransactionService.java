@@ -96,15 +96,15 @@ public class TransactionService {
         LocalDate startDateLocal;
         LocalDate endDateLocal;
 
-        if (monthsAgo == 0) { // THIS MONTH
+        if (monthsAgo == 0) {
             startDateLocal = now.withDayOfMonth(1).toLocalDate();
             endDateLocal = now.toLocalDate();
-        } else if (monthsAgo == 1) { // LAST MONTH
+        } else if (monthsAgo == 1) {
             LocalDate lastMonthStart = now.minusMonths(1).toLocalDate().withDayOfMonth(1);
             LocalDate lastMonthEnd = lastMonthStart.withDayOfMonth(lastMonthStart.lengthOfMonth());
             startDateLocal = lastMonthStart;
             endDateLocal = lastMonthEnd;
-        } else if (monthsAgo == 3) { // THREE MONTH AGO
+        } else if (monthsAgo == 3) {
             LocalDate threeMonthStart = now.minusMonths(3).toLocalDate().withDayOfMonth(1);
             LocalDate lastMonthEnd = now.minusMonths(1).toLocalDate().withDayOfMonth(now.minusMonths(1).toLocalDate().lengthOfMonth());
             startDateLocal = threeMonthStart;
@@ -140,7 +140,6 @@ public class TransactionService {
                 .mapToInt(TransactionModel::getAmount)
                 .sum();
 
-        // Format tanggal sesuai permintaan
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         return Map.of(
@@ -162,10 +161,8 @@ public class TransactionService {
             sortBy = "id";
         }
 
-        // Ambil data dari DB
         List<TransactionModel> allData = transactionRepository.findAllByAccountnum(accountnum);
 
-        // Filter tanggal fleksibel
         LocalDateTime start = null;
         LocalDateTime end = null;
         try {
@@ -178,13 +175,11 @@ public class TransactionService {
                 end = LocalDate.parse(dateEnd).atTime(23, 59, 59, 999999999);
             }
         } catch (Exception e) {
-            // Ignore error date parsing
         }
 
         final LocalDateTime finalStart = start;
         final LocalDateTime finalEnd = end;
 
-        // Filter keyword dan tanggal
         List<TransactionModel> filtered = allData.stream()
                 .filter(t -> {
                     boolean matches = true;
@@ -207,7 +202,6 @@ public class TransactionService {
                 })
                 .collect(Collectors.toList());
 
-        // Sorting manual
         final String finalSortBy = sortBy;
         final String finalDirection = direction;
 
@@ -237,7 +231,6 @@ public class TransactionService {
         });
 
 
-        // Pagination
         int startIdx = Math.min(page * size, filtered.size());
         int endIdx = Math.min(startIdx + size, filtered.size());
         List<TransactionModel> pagedData = filtered.subList(startIdx, endIdx);
@@ -245,7 +238,6 @@ public class TransactionService {
         return new PageImpl<>(pagedData, PageRequest.of(page, size), filtered.size());
     }
 
-    // Helper: format tanggal fleksibel
     private String formatFlexibleDate(String date) {
         String[] parts = date.split("-");
         String year = parts[0];

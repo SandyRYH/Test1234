@@ -16,8 +16,7 @@ public class TransactionModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    private String accountnum; // Foreign key reference to User.accountnum
+    private String accountnum;
     private String dateTime;
     private String type;
     private String fromTo;

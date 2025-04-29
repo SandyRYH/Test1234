@@ -27,12 +27,14 @@ public class TransactionController {
     public ResponseEntity<TransactionPageResponse> getMyTransactions(
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "1") int page,  // start from 1
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "0") int size,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "asc") String direction,
             @RequestParam(required = false) String dateStart,
             @RequestParam(required = false) String dateEnd
     ) {
+        if (size == 0) size = Integer.MAX_VALUE;
+
         String userId = securityUtility.getCurrentUserId();
         if (userId == null) {
             TransactionPageResponse failRes = new TransactionPageResponse();
@@ -112,27 +114,21 @@ public class TransactionController {
             ));
         }
 
-        // Validasi dan format dateTime
         try {
             if (transaction.getDateTime() == null || transaction.getDateTime().trim().isEmpty()) {
-                // Auto sekarang jika kosong
+
                 transaction.setDateTime(java.time.LocalDateTime.now().toString());
             } else {
-                // Parse dateTime dari request
                 LocalDateTime inputDateTime;
-
-                if (transaction.getDateTime().length() == 10) { // format YYYY-MM-DD
+                if (transaction.getDateTime().length() == 10) {
                     inputDateTime = LocalDate.parse(transaction.getDateTime()).atStartOfDay();
                 } else {
-                    inputDateTime = LocalDateTime.parse(transaction.getDateTime()); // ISO 8601
+                    inputDateTime = LocalDateTime.parse(transaction.getDateTime());
                 }
 
-                // Validasi tidak boleh melebihi sekarang
                 if (inputDateTime.isAfter(LocalDateTime.now())) {
                     return ResponseEntity.badRequest().body("dateTime cannot be in the future.");
                 }
-
-                // Set format yang pasti panjang (pakai toString ISO full)
                 transaction.setDateTime(inputDateTime.toString());
             }
         } catch (Exception e) {

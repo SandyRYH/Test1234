@@ -42,8 +42,7 @@ public class TransferService {
 
         User fromUser = fromUserOpt.get();
         User toUser = toUserOpt.get();
-
-        // Validasi PIN
+        
         Optional<UserPin> pinOpt = userPinRepository.findByAccountnum(fromUser.getAccountnum());
         if (!pinOpt.isPresent()) {
             res.setStatus("error");
@@ -60,28 +59,24 @@ public class TransferService {
             return res;
         }
 
-        // Validasi: tidak boleh transfer ke diri sendiri
         if (fromUser.getAccountnum().equals(toUser.getAccountnum())) {
             res.setStatus("error");
             res.setMessage("Cannot transfer to the same account");
             return res;
         }
 
-        // Validasi: transfer tidak boleh 0 atau negatif
         if (request.getAmount() <= 0) {
             res.setStatus("error");
             res.setMessage("Transfer amount must be greater than zero");
             return res;
         }
 
-        // Validasi: saldo harus cukup
         if (fromUser.getBalance() < request.getAmount()) {
             res.setStatus("error");
             res.setMessage("Insufficient balance");
             return res;
         }
 
-        // Proses transfer: update saldo
         fromUser.setBalance(fromUser.getBalance() - request.getAmount());
         toUser.setBalance(toUser.getBalance() + request.getAmount());
 

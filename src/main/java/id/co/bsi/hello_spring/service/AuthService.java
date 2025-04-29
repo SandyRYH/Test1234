@@ -45,10 +45,8 @@ public class AuthService {
     @Autowired
     private UserPinRepository userPinRepository;
 
-    // Temp storage backend
     private final Map<String, Map<String, String>> tempRegisterData = new HashMap<>();
 
-    // Step 1: Terima data register, simpan sementara
     public ResponseEntity<?> processRegisterTemp(Map<String, String> payload) {
         String fullName = payload.get("fullName");
         String email = payload.get("email");
@@ -86,8 +84,6 @@ public class AuthService {
         return ResponseEntity.ok(Map.of("accountnum", accountnum, "message", "Proceed to PIN entry."));
     }
 
-
-    // Step 2: Finalisasi PIN → Simpan DB
     public ResponseEntity<?> saveRegisterWithPinFromTemp(Map<String, String> payload) {
         String accountnum = payload.get("accountnum");
         String pin = payload.get("pin");
@@ -129,7 +125,6 @@ public class AuthService {
         return accountnum.toString();
     }
 
-    // Validasi Password Kuat
     private boolean isValidPassword(String password) {
         if (password == null || password.length() < 8) return false;
         boolean hasUpper = false, hasLower = false, hasDigit = false, hasSpecial = false;
@@ -142,7 +137,6 @@ public class AuthService {
         return hasUpper && hasLower && hasDigit && hasSpecial;
     }
 
-    // Login Tetap
     public LoginResponse login(LoginRequest req) {
         this.authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())

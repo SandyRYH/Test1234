@@ -4,7 +4,6 @@ import id.co.bsi.hello_spring.dto.request.TopUpRequest;
 import id.co.bsi.hello_spring.dto.response.TopUpResponse;
 import id.co.bsi.hello_spring.model.TransactionModel;
 import id.co.bsi.hello_spring.model.User;
-import id.co.bsi.hello_spring.model.UserPin;
 import id.co.bsi.hello_spring.repository.UserPinRepository;
 import id.co.bsi.hello_spring.repository.UserRepository;
 import id.co.bsi.hello_spring.service.TransactionService;
@@ -13,8 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.MessageDigest;
-import java.util.Base64;
 import java.util.Optional;
 
 @RestController
@@ -58,7 +55,6 @@ public class TopUpController {
 
         User user = userOpt.get();
 
-        // Validasi kartu ATM
         if (topUpRequest.getCardNumber() == null || !topUpRequest.getCardNumber().matches("\\d{16}")) {
             response.setStatus("fail");
             response.setMessage("Invalid card number. Must be 16 digits.");
@@ -75,7 +71,6 @@ public class TopUpController {
             return ResponseEntity.status(400).body(response);
         }
 
-        // Cek kadaluarsa kartu
         String[] expParts = topUpRequest.getExpirationDate().split("/");
         int expMonth = Integer.parseInt(expParts[0]);
         int expYear = Integer.parseInt("20" + expParts[1]);
@@ -111,11 +106,9 @@ public class TopUpController {
 //            return ResponseEntity.status(500).body(response);
 //        }
 
-        // Update balance
         user.setBalance(user.getBalance() + topUpRequest.getAmount());
         userRepository.save(user);
-
-        // Add transaction log
+        
         TransactionModel txn = new TransactionModel();
         txn.setAccountnum(user.getAccountnum());
         txn.setAmount(topUpRequest.getAmount());
