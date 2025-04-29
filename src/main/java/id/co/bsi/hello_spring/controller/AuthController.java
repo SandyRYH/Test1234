@@ -17,13 +17,11 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
-    // Register → Simpan sementara backend
     @PostMapping("/register")
     public ResponseEntity<?> registerTemp(@RequestBody Map<String, String> payload) {
         return authService.processRegisterTemp(payload);
     }
 
-    // PIN → Simpan ke database
     @PostMapping("/pin")
     public ResponseEntity<?> pinFinalize(@RequestBody Map<String, String> payload) {
         return authService.saveRegisterWithPinFromTemp(payload);

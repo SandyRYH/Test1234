@@ -30,7 +30,7 @@ public class TransferController {
             return new ResponseEntity<>(unauthorizedResponse, HttpStatus.UNAUTHORIZED);
         }
 
-        transferRequest.setFromAccountnum(userId); // Inject accountnum from JWT
+        transferRequest.setFromAccountnum(userId);
 
         TransferResponse transferResponse = transferService.transfer(transferRequest);
         if ("success".equals(transferResponse.getStatus())) {
