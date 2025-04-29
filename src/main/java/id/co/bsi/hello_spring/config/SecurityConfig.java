@@ -63,7 +63,11 @@ public class SecurityConfig {
         // Allow frontend origins
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
-                "https://your-vercel-app-domain.vercel.app"
+                "https://your-vercel-app-domain.vercel.app",
+                "http://localhost:5173",
+                "http://localhost:8081",
+                "http://localhost:8080",
+                "https://e-wallet-three.vercel.app"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
